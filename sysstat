@@ -1,0 +1,413 @@
+#!/usr/bin/python3
+import subprocess
+p4 = subprocess.Popen(["grep", "-n", " ", "%s" % '/proc/meminfo'], stdin=subprocess.PIPE, stdout=subprocess.PIPE, close_fds=True)
+p3 = subprocess.Popen(["landscape-sysinfo"], stdin=subprocess.PIPE, stdout=subprocess.PIPE, close_fds=True)
+p5 = subprocess.Popen(["users"], stdin=subprocess.PIPE, stdout=subprocess.PIPE, close_fds=True)
+cmd = ['/sbin/ifconfig']
+cmd2 = ['grep', 'inet \|RX packets\|Link encap:']
+p = subprocess.Popen(cmd, stdout=subprocess.PIPE)
+p2 = subprocess.Popen(cmd2, stdin=p.stdout, stdout=subprocess.PIPE)
+
+p6 = subprocess.Popen(["grep", "-n", "model name\|cpu MHz\|processor", "%s" % '/proc/cpuinfo'], stdin=subprocess.PIPE, stdout=subprocess.PIPE, close_fds=True)
+datacpu = p6.stdout.readlines()
+#print(datacpu)
+cpus = 0
+for line in datacpu:
+    if "processor" in str(line):
+        cpus = cpus + 1
+#print(cpus)
+f = 0
+cpuchart = []
+for i in range(0, cpus):
+    cpumaxstrip = str(datacpu[f+1])
+    k = cpumaxstrip.find("@")
+    k = k + 1
+    r = cpumaxstrip.find("GHz")
+    cpumaxstrip = cpumaxstrip[k:r]
+    cpumaxstrip = eval(cpumaxstrip) * 1000
+    #print(cpumaxstrip)
+    cpucurrstrip = str(datacpu[f+2])
+    k = cpucurrstrip.find("n'")
+    k = k - 1
+    r = cpucurrstrip.find("t:")
+    r = r + 3
+    cpucurrstrip = cpucurrstrip[r:k]
+    cpucurrstrip = eval(cpucurrstrip)
+    #print(cpucurrstrip)
+    cpuper = cpucurrstrip / cpumaxstrip
+    cpuper = int(float(cpuper * 100))
+    cpuchart.append(str(cpuper) + "%")
+    f = f + 3
+datanet = p2.stdout.readlines()
+if 'Link encap' not in str(datanet):
+    cmd = ['/sbin/ifconfig']
+    cmd2 = ['grep', 'inet \|BROADCAST']
+    p10 = subprocess.Popen(cmd, stdout=subprocess.PIPE)
+    p9 = subprocess.Popen(cmd2, stdin=p10.stdout, stdout=subprocess.PIPE)
+    datanet = p9.stdout.readlines()
+    #print(datanet)
+#print(datanet)
+dataneta = []
+i = 0
+dh = 0
+inter = " "
+for line in datanet:
+
+    if 'Link encap' in str(line):
+        inter = str(datanet[i])
+            #print(inter)
+    elif 'BROADCAST' in str(line):
+        inter = str(datanet[i])
+            #print(inter)
+    elif 'LOOPBACK' in str(line):
+        inter = " "
+    elif "addr:127.0.0.1 " not in str(line) and 'lo' not in str(inter) and 'vmnet' not in str(inter) and "inet 127.0.0.1 " not in str(line):
+        if "RX packets:" in str(line):
+            datastrnet = str(datanet[i])
+            k = datastrnet.find("RX packets:")
+            k = k + 11
+            datastrfind = datastrnet[k:]
+            r = datastrfind.find(" errors")
+
+            #print(datastrfind[:r])
+            datastrfind = eval(datastrfind[:r])
+
+            if datastrfind > 0:
+                dh = 1
+            #print(datastrfind)
+        if 'flags=4163' in inter:
+            dh = 1
+            #print(inter)
+
+        if "inet addr:" in str(datanet[i-1]):
+            if dh == 1:
+                datastrnet = str(datanet[i-1])
+                #print(datastrnet)
+                #print(datastrfind)
+                k = datastrnet.find("Bcast:")
+                k = k - 1
+                r = datastrnet.find("addr:")
+                r = r + 5
+                #print(datastrnet)
+                dataneta.append(datastrnet[r:k])
+                dh = 0
+        elif "inet " in str(datanet[i+1]) and "inet addr:" not in str(datanet[i]):
+            if dh == 1:
+                datastrnet = str(datanet[i])
+                k = datastrnet.find("netmask")
+                k = k - 1
+                r = datastrnet.find("inet ")
+                r = r + 5
+                dataneta.append(datastrnet[r:k])
+    i = i + 1
+#print(dataneta)
+dataneta = str(dataneta)
+k = dataneta.find("['")
+k = k + 2
+r = dataneta.find("']")
+dataneta = dataneta[k:r]
+(stdout, stdin) = (p3.stdout, p3.stdin)
+data = stdout.readlines()
+#print(data)
+memdat = p4.stdout.readlines()
+usr = p5.stdout.readlines()
+l = 0
+usrcurrent = []
+usr = str(usr)
+k = usr.find("b'")
+k = k + 2
+
+usr = usr[k:]
+#print(usr)
+for char in usr:
+    #print(char)
+    if char == ' ':
+        k = usr.find(" ")
+        usrfull = usr[k:]
+        usrcurrent.append(usr[:k])
+        usr = usrfull
+        #print(usrcurrent[l])
+        l = l + 1
+i = 0
+l = 0
+#print(data)
+for line in data:
+    datas = str(data[i])
+    k = datas.find("n'")
+    k = k - 1
+    r = datas.find("b'")
+    r = r + 2
+    dataf = datas
+    datas = datas[r:k]
+    if "System load:" in datas:
+        datald = datas
+        k = datald.find("                ")
+        k = k - 2
+        datasr = datald[:k]
+        l = int(len(datasr))
+        #print(l)
+        if l >= 36:
+            br = 1
+        else:
+            br = 0
+        k = datald.find("System load:  ")
+        k = k + 14
+        r = datald.find("                ")
+        datanum = datald[k:r]
+        r = r + 16
+        dataend = datald[r:]
+        datanum = int(float(datanum) * 100)
+        datanum = str(datanum) + "%"
+        #print(datanum)
+        #print(dataend)
+        k = datald.find("  System load:  ")
+        r = k + 14
+        if "Processes" not in datald:
+            datasave = datald[k:r]
+            k = dataend.find(":")
+            dataend = dataend[:k]
+        else:
+            datasave = datald[k:r]
+            dataend = "Users logged in"
+        j = 0
+        for line in usrcurrent:
+            if j == 0:
+                dataend = dataend + ": " + str(usrcurrent[j])
+            else:
+                if usrcurrent[j] is not '':
+                    dataend = dataend + ", " + str(usrcurrent[j])
+            j = j + 1
+        i = 0
+        for a in range(0, cpus):
+            if a == 0:
+                datald = datasave + " " + str(cpuchart[a])
+            else:
+                datald = datald + " " + str(cpuchart[a])
+            a = a + 1
+        if br == 1:
+            datas = datald + "\n" + dataend
+        else:
+            l2 = len(datald)
+            #print(l2)
+
+            for m in range(l2, 35):
+                datald = datald + ' '
+            datas = datald + dataend
+            l = 0
+    n = 0
+
+    if "Swap usage: " in datas:
+        datald = datas
+        k = datald.find("                  ")
+        k = k - 2
+        datasr = datald[:k]
+        l = int(len(datasr))
+        #print(l)
+        if l >= 36:
+            br = 1
+        else:
+            br = 0
+        for line in memdat:
+            if "SwapTotal:" in str(memdat[n]):
+                memfull = str(memdat[n])
+                #print(memfull)
+                k = memfull.find("n'")
+                k = k - 1
+                r = memfull.find("b'")
+                r = r + 15
+                memfull = memfull[r:k]
+                r = 0
+                for char in memfull:
+                    if char is not ' ':
+                        #print(r)
+                        break
+                    r = r + 1
+                k = memfull.find(" kB")
+                memfull = int(memfull[r:k])
+                #print(memfull)
+            elif "SwapFree:" in str(memdat[n]):
+                memcur = str(memdat[n])
+                k = memcur.find("n'")
+                k = k - 1
+                r = memcur.find("b'")
+                r = r + 14
+                memcur = memcur[r:k]
+                r = 0
+                for char in memcur:
+                    if char is not ' ':
+                        #print(r)
+                        break
+                    r = r + 1
+                k = memcur.find(" kB")
+                #print(k)
+                memcur = int(memcur[r:k])
+                #print(memcur)
+            n = n + 1
+        memuse = memfull - memcur
+        memuse = int(float(memuse / 1024))
+        memtot = int(float(memfull / 1024))
+        #print(memtot)
+        #print(memuse)
+        memper = memuse / memtot
+        memper = int(float(memper * 100))
+        #print(memper)
+        k = datas.find("Swap Usage: ")
+        k = k + 17
+
+        datap = datas[:k]
+        #print(datap)
+        r = datas.find("IP")
+        r = r
+
+        databak = datas[r:]
+        datas = datap + str(memuse) + "/" + str(memtot) + "MB (" + str(memper) + "%)"
+        l = int(len(datas))
+        #print(l)
+        if l >= 36:
+            br = 1
+        else:
+            br = 0
+        if br == 1:
+            datas = datas + "/n" #+ databak
+        else:
+            l2 = len(datas)
+            #print(l2)
+            for m in range(l2, 36):
+                datas = datas + ' '
+            datas = datas #+ databak
+
+    if "Memory usage: " in datas:
+        datald = datas
+        k = datald.find("                 ")
+        k = k - 2
+        datasr = datald[:k]
+        l = int(len(datasr))
+        #print(l)
+        if l >= 36:
+            br = 1
+        else:
+            br = 0
+        for line in memdat:
+            if "MemTotal:" in str(memdat[n]):
+                memfull = str(memdat[n])
+                k = memfull.find("n'")
+                k = k - 1
+                r = memfull.find("b'")
+                r = r + 13
+                memfull = memfull[r:k]
+                r = 0
+                for char in memfull:
+                    if char is not ' ':
+                        #print(r)
+                        break
+                    r = r + 1
+                k = memfull.find(" kB")
+                memfull = int(memfull[r:k])
+                #print(memfull)
+            elif "MemAvailable:" in str(memdat[n]):
+                memcur = str(memdat[n])
+                k = memcur.find("n'")
+                k = k - 1
+                r = memcur.find("b'")
+                r = r + 17
+                memcur = memcur[r:k]
+                r = 0
+                for char in memcur:
+                    if char is not ' ':
+                        #print(r)
+                        break
+                    r = r + 1
+                k = memcur.find(" kB")
+                #print(k)
+                memcur = int(memcur[r:k])
+                #print(memcur)
+            n = n + 1
+        memuse = memfull - memcur
+        memuse = int(float(memuse / 1024))
+        memtot = int(float(memfull / 1024))
+        #print(memtot)
+        #print(memuse)
+        memper = memuse / memtot
+        memper = int(float(memper * 100))
+        #print(memper)
+        k = datas.find("Memory Usage: ")
+        k = k + 17
+
+        datap = datas[:k]
+        #print(datap)
+        r = datas.find("IP")
+        r = r
+
+        databak = datas[r:]
+        datas = datap + str(memuse) + "/" + str(memtot) + "MB (" + str(memper) + "%)"
+        l = int(len(datas))
+        #print(l)
+        if l >= 36:
+            br = 1
+        else:
+            br = 0
+        if br == 1:
+            datas = datas + "/n" #+ databak
+        else:
+            l2 = len(datas)
+            #print(l2)
+            for m in range(l2, 36):
+                datas = datas + ' '
+            datas = datas #+ databak
+
+    if "Usage of /:   " in datas:
+        #print(datas)
+
+        k = datas.find("GB")
+        k = k + 2
+        datasr = datas[:k]
+        l = int(len(datasr))
+        #print(l)
+        l = l
+        if l >= 36:
+            br = 1
+        else:
+            br = 0
+        k = datas.find("Usage of /:   ")
+        k = k + 14
+        r = datas.find("%")
+        datahold = datas[k:r]
+        k = datas.find("% of ")
+        k = k + 5
+        r = datas.find("GB")
+        datatot = int(float(datas[k:r]))
+        datatot = int(datatot * 1.073742)
+        #print(datahold)
+        datanum = int(float(datahold))
+        datanum = int(datanum * 1.073742)
+        datacom = int(float(datanum * datatot))
+        datacom = datacom / 100
+        r = 2
+        datask = inter[r:]
+        if "Link encap:" not in datask:
+            k = datask.find(":")
+        else:
+            k = datask.find(" ")
+        datask = datask[:k]
+        #print(datask)
+
+        dataint = datask
+        dataip = datask[r:]
+        datask = dataint + "'s IP: " + str(dataneta)
+        datas = "  / used:  " + str(datahold) + "% (" + str(datacom) + "GB)/" + str(datatot) + "GB"
+        if br == 1:
+            datas = datas + "\n" + datask
+            br = 0
+        else:
+            for m in range(l, 36):
+                datask = ' ' + datask
+            datas = datas + datask
+    #print(str("b'\n'"))
+    if str(" ") in dataf:
+        print(datas)
+        #print(str(data[i]))
+    else:
+        break
+    i = i + 1
+#"grep", "-n", "1", "%s" % '/proc/loadavg'
+#  / used:  25.9% (124.28GB)/478GB   I   37
